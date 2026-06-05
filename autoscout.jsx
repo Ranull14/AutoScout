@@ -27,6 +27,16 @@ function useFonts() {
   }, []);
 }
 
+function useIsMobile() {
+  const [m, setM] = useState(() => typeof window !== "undefined" && window.innerWidth < 640);
+  useEffect(() => {
+    const fn = () => setM(window.innerWidth < 640);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return m;
+}
+
 // ── Car Library Data ──────────────────────────────────────────────────────────
 // eff: L/100km (gas/hybrid) or kWh/100km (ev) | keep5: % value retained after 5yr
 const LIBRARY = [
@@ -269,6 +279,7 @@ function LibraryCard({car, inGarage, onAdd, onRemove, s}) {
 
 // ── Garage Card ───────────────────────────────────────────────────────────────
 function GarageCard({car, selected, onSelect, onRemove, s, isBest5yr}) {
+  const m    = useIsMobile();
   const fuel = annFuel(car, s);
   const tot5 = total5(car, s);
   const c    = TC[car.type];
@@ -320,16 +331,18 @@ function GarageCard({car, selected, onSelect, onRemove, s, isBest5yr}) {
       </div>
 
       {/* Stats strip */}
-      <div style={{display:"flex", gap:0, marginBottom:10, background:C.s3, border:`1px solid ${C.bdr}`, borderRadius:6, overflow:"hidden"}}>
+      <div style={{display:"grid", gridTemplateColumns: m ? "1fr 1fr" : "1fr 1fr 1fr 1fr",
+        marginBottom:10, background:C.s3, border:`1px solid ${C.bdr}`, borderRadius:6, overflow:"hidden"}}>
         {[
-          {l:"2-WEEK", v:$c(fuel/26)},
-          {l:"MONTHLY", v:$c(fuel/12)},
+          {l:"2-WEEK",    v:$c(fuel/26)},
+          {l:"MONTHLY",   v:$c(fuel/12)},
           {l:"INSURANCE", v:$c(car.ins)},
-          {l:"MAINT.", v:$c(car.maint)},
+          {l:"MAINT.",    v:$c(car.maint)},
         ].map((x,i) => (
-          <div key={i} style={{flex:1, padding:"7px 4px", textAlign:"center",
-            borderRight: i<3 ? `1px solid ${C.bdr}` : "none"}}>
-            <div style={{fontFamily:MONO, fontSize:10, color:C.t2}}>{x.v}</div>
+          <div key={i} style={{padding:"8px 4px", textAlign:"center",
+            borderRight: m ? (i%2===0 ? `1px solid ${C.bdr}` : "none") : (i<3 ? `1px solid ${C.bdr}` : "none"),
+            borderBottom: m && i < 2 ? `1px solid ${C.bdr}` : "none"}}>
+            <div style={{fontFamily:MONO, fontSize:m?11:10, color:C.t2}}>{x.v}</div>
             <div style={{fontFamily:COND, fontSize:8, color:C.t5, marginTop:2, letterSpacing:"0.06em"}}>{x.l}</div>
           </div>
         ))}
@@ -497,9 +510,10 @@ const tdS = { padding:"7px 10px", borderBottom:`1px solid ${C.bdr}22` };
 
 // ── Financing Section ─────────────────────────────────────────────────────────
 function FinancingSection({cars, f, setF}) {
+  const m = useIsMobile();
   return (
     <div>
-      <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:20}}>
+      <div style={{display:"grid", gridTemplateColumns: m ? "1fr" : "1fr 1fr 1fr", gap:12, marginBottom:20}}>
         <div>
           <div style={{fontFamily:COND, fontSize:9, color:C.t5, letterSpacing:"0.08em",
             textTransform:"uppercase", marginBottom:6}}>DOWN PAYMENT</div>
@@ -573,6 +587,7 @@ function FinancingSection({cars, f, setF}) {
 
 // ── Library View ──────────────────────────────────────────────────────────────
 function LibraryView({allCars, garageIds, onAdd, onRemove, s}) {
+  const m = useIsMobile();
   const [search, setSearch] = useState("");
   const [typeF, setTypeF]   = useState("all");
 
@@ -585,23 +600,25 @@ function LibraryView({allCars, garageIds, onAdd, onRemove, s}) {
 
   return (
     <div>
-      <div style={{display:"flex", gap:8, alignItems:"center", marginBottom:20, flexWrap:"wrap"}}>
+      <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:20}}>
         <input placeholder="Search by name, segment, year…" value={search}
           onChange={e=>setSearch(e.target.value)}
-          style={{flex:1, minWidth:200, background:C.s2, border:`1px solid ${C.bdr}`, borderRadius:6,
-            padding:"8px 12px", color:C.t1, fontFamily:BODY, fontSize:13, outline:"none"}} />
-        {["all","gas","hybrid","ev"].map(t=>(
-          <button key={t} onClick={()=>setTypeF(t)}
-            style={{fontFamily:COND, fontWeight:700, fontSize:10, letterSpacing:"0.08em",
-              padding:"6px 14px", borderRadius:100, cursor:"pointer", border:"none",
-              background: typeF===t ? (t==="all"?C.blue:TC[t]) : C.s2,
-              color: typeF===t ? (t==="all"?C.bg:"#000") : C.t4}}>
-            {t==="all"?"ALL":TL[t]}
-          </button>
-        ))}
-        <span style={{fontFamily:COND, fontSize:10, color:C.t5, letterSpacing:"0.06em"}}>{filtered.length} VEHICLES</span>
+          style={{width:"100%", background:C.s2, border:`1px solid ${C.bdr}`, borderRadius:6,
+            padding:"10px 12px", color:C.t1, fontFamily:BODY, fontSize:13, outline:"none"}} />
+        <div style={{display:"flex", gap:6, flexWrap:"wrap", alignItems:"center"}}>
+          {["all","gas","hybrid","ev"].map(t=>(
+            <button key={t} onClick={()=>setTypeF(t)}
+              style={{fontFamily:COND, fontWeight:700, fontSize:10, letterSpacing:"0.08em",
+                padding:"7px 14px", borderRadius:100, cursor:"pointer", border:"none",
+                background: typeF===t ? (t==="all"?C.blue:TC[t]) : C.s2,
+                color: typeF===t ? (t==="all"?C.bg:"#000") : C.t4}}>
+              {t==="all"?"ALL":TL[t]}
+            </button>
+          ))}
+          <span style={{fontFamily:COND, fontSize:10, color:C.t5, letterSpacing:"0.06em", marginLeft:"auto"}}>{filtered.length} VEHICLES</span>
+        </div>
       </div>
-      <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px, 1fr))", gap:14}}>
+      <div style={{display:"grid", gridTemplateColumns:`repeat(auto-fill, minmax(${m?"280px":"280px"}, 1fr))`, gap:14}}>
         {filtered.map(car => (
           <LibraryCard key={car.id} car={car} inGarage={garageIds.includes(car.id)} onAdd={onAdd} onRemove={onRemove} s={s} />
         ))}
@@ -673,6 +690,7 @@ function vehToCard(v, name, msrp, seg) {
 
 // ── Add Car View ──────────────────────────────────────────────────────────────
 function AddCarView({onAdd}) {
+  const m = useIsMobile();
   const [yr,    setYr]    = useState("2025");
   const [makes, setMakes] = useState([]);
   const [make,  setMake]  = useState("");
@@ -764,7 +782,7 @@ function AddCarView({onAdd}) {
         </div>
 
         {makes.length > 0 && (
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12}}>
+          <div style={{display:"grid", gridTemplateColumns: m ? "1fr" : "1fr 1fr 1fr", gap:12}}>
             {/* Make */}
             <div>
               <label style={lbl}>MAKE</label>
@@ -844,7 +862,7 @@ function AddCarView({onAdd}) {
           </div>
 
           {/* MSRP + Segment */}
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16}}>
+          <div style={{display:"grid", gridTemplateColumns: m ? "1fr" : "1fr 1fr", gap:12, marginBottom:16}}>
             <Inp label="Canadian Price (MSRP or Market, $CAD) *required"
               type="number" value={msrp} onChange={setMsrp}
               placeholder="Check AutoTrader.ca — e.g. 45000" />
@@ -895,6 +913,7 @@ function AddCarView({onAdd}) {
 
 // ── Garage View ───────────────────────────────────────────────────────────────
 function GarageView({garageCars, selected, onSelect, onRemove, s, f, setF}) {
+  const m = useIsMobile();
   const [subView, setSubView] = useState("overview");
   const selectedCars = garageCars.filter(c=>selected.includes(c.id));
   const totals = garageCars.map(c=>total5(c,s));
@@ -911,15 +930,17 @@ function GarageView({garageCars, selected, onSelect, onRemove, s, f, setF}) {
   return (
     <div>
       {/* Sub-navigation */}
-      <div style={{display:"flex", gap:0, marginBottom:20, borderBottom:`1px solid ${C.bdr}`}}>
+      <div style={{display:"flex", gap:0, marginBottom:20, borderBottom:`1px solid ${C.bdr}`,
+        overflowX:"auto", WebkitOverflowScrolling:"touch"}}>
         {[
-          {k:"overview",  l:`OVERVIEW (${garageCars.length})`},
-          {k:"compare",   l:`COMPARE (${selected.length} SELECTED)`},
+          {k:"overview",  l: m ? `OVERVIEW` : `OVERVIEW (${garageCars.length})`},
+          {k:"compare",   l: m ? `COMPARE`  : `COMPARE (${selected.length} SELECTED)`},
           {k:"financing", l:"FINANCING"},
         ].map(x=>(
           <button key={x.k} onClick={()=>setSubView(x.k)}
-            style={{fontFamily:COND, fontWeight:700, fontSize:11, letterSpacing:"0.08em",
-              padding:"8px 16px", border:"none", cursor:"pointer", background:"transparent",
+            style={{fontFamily:COND, fontWeight:700, fontSize:m?12:11, letterSpacing:"0.08em",
+              padding: m ? "10px 18px" : "8px 16px",
+              border:"none", cursor:"pointer", background:"transparent", flexShrink:0,
               color: subView===x.k ? C.t1 : C.t4,
               borderBottom: `2px solid ${subView===x.k ? C.blue : "transparent"}`,
               marginBottom:-1, transition:"color .1s"}}>
@@ -968,6 +989,7 @@ function GarageView({garageCars, selected, onSelect, onRemove, s, f, setF}) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   useFonts();
+  const m = useIsMobile();
   const [view, setView]             = useState("garage");
   const [garageIds, setGarageIds]   = useState(SHORTLIST_IDS);
   const [customCars, setCustomCars] = useState([]);
@@ -995,61 +1017,99 @@ export default function App() {
       <style>{`
         * { box-sizing: border-box; }
         input[type=range] { -webkit-appearance:none; width:100%; height:4px; background:${C.s1}; border-radius:2px; outline:none; cursor:pointer; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:${C.blue}; cursor:pointer; }
-        input[type=range]::-moz-range-thumb { width:13px; height:13px; border-radius:50%; background:${C.blue}; cursor:pointer; border:none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:${C.blue}; cursor:pointer; }
+        input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:${C.blue}; cursor:pointer; border:none; }
+        button { touch-action: manipulation; }
         button:focus { outline:none; }
         input:focus, select:focus { border-color:${C.blue} !important; }
+        input, select, button { font-size: 16px; }
+        @media (min-width: 640px) { input, select, button { font-size: inherit; } }
       `}</style>
 
       {/* ── HEADER ── */}
       <div style={{background:`linear-gradient(150deg,#0e1d35 0%,${C.bg} 70%)`,
         borderBottom:`1px solid ${C.bdr}`, position:"sticky", top:0, zIndex:100}}>
-        <div style={{maxWidth:960, margin:"0 auto", padding:"0 20px",
-          display:"flex", alignItems:"center", gap:24, height:54}}>
-          {/* Logo */}
-          <div style={{flexShrink:0}}>
-            <span style={{fontFamily:COND, fontWeight:900, fontSize:22, letterSpacing:"-0.01em", color:C.t1}}>
-              <span style={{color:C.blue}}>AUTO</span>SCOUT
-            </span>
-            <div style={{fontFamily:COND, fontSize:8, color:C.t5, letterSpacing:"0.15em", marginTop:-2}}>
-              ONTARIO · JUNE 2026 · KINCARDINE
+        {m ? (
+          /* ── Mobile header: logo+settings row, then scrollable tabs row ── */
+          <div>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between",
+              padding:"10px 14px"}}>
+              <div>
+                <span style={{fontFamily:COND, fontWeight:900, fontSize:20, letterSpacing:"-0.01em", color:C.t1}}>
+                  <span style={{color:C.blue}}>AUTO</span>SCOUT
+                </span>
+                <div style={{fontFamily:COND, fontSize:8, color:C.t5, letterSpacing:"0.15em", marginTop:-1}}>
+                  ONTARIO · JUNE 2026
+                </div>
+              </div>
+              <button onClick={()=>setShowSettings(x=>!x)}
+                style={{background:showSettings?C.blueLo:"none",
+                  border:showSettings?`1px solid ${C.blue}33`:"1px solid transparent",
+                  borderRadius:6, color:showSettings?C.blue:C.t4,
+                  cursor:"pointer", fontFamily:COND, fontSize:11, fontWeight:700,
+                  letterSpacing:"0.08em", padding:"8px 12px"}}>
+                ⚙ SETTINGS
+              </button>
+            </div>
+            <div style={{display:"flex", borderTop:`1px solid ${C.bdr}`,
+              overflowX:"auto", WebkitOverflowScrolling:"touch"}}>
+              {TABS.map(t=>(
+                <button key={t.k} onClick={()=>setView(t.k)}
+                  style={{fontFamily:COND, fontWeight:700, fontSize:11, letterSpacing:"0.06em",
+                    padding:"10px 16px", border:"none", cursor:"pointer", background:"transparent",
+                    flexShrink:0, whiteSpace:"nowrap",
+                    color: view===t.k ? C.t1 : C.t4,
+                    borderBottom: `2px solid ${view===t.k ? C.blue : "transparent"}`,
+                    transition:"color .1s"}}>
+                  {t.l}
+                </button>
+              ))}
             </div>
           </div>
-
-          {/* Nav tabs */}
-          <div style={{display:"flex", gap:0, flex:1, borderBottom:"none"}}>
-            {TABS.map(t=>(
-              <button key={t.k} onClick={()=>setView(t.k)}
-                style={{fontFamily:COND, fontWeight:700, fontSize:11, letterSpacing:"0.08em",
-                  padding:"0 14px", height:54, border:"none", cursor:"pointer", background:"transparent",
-                  color: view===t.k ? C.t1 : C.t4,
-                  borderBottom: `2px solid ${view===t.k ? C.blue : "transparent"}`,
-                  transition:"color .1s", whiteSpace:"nowrap"}}>
-                {t.l}
-              </button>
-            ))}
+        ) : (
+          /* ── Desktop header: single row ── */
+          <div style={{maxWidth:960, margin:"0 auto", padding:"0 20px",
+            display:"flex", alignItems:"center", gap:24, height:54}}>
+            <div style={{flexShrink:0}}>
+              <span style={{fontFamily:COND, fontWeight:900, fontSize:22, letterSpacing:"-0.01em", color:C.t1}}>
+                <span style={{color:C.blue}}>AUTO</span>SCOUT
+              </span>
+              <div style={{fontFamily:COND, fontSize:8, color:C.t5, letterSpacing:"0.15em", marginTop:-2}}>
+                ONTARIO · JUNE 2026 · KINCARDINE
+              </div>
+            </div>
+            <div style={{display:"flex", gap:0, flex:1}}>
+              {TABS.map(t=>(
+                <button key={t.k} onClick={()=>setView(t.k)}
+                  style={{fontFamily:COND, fontWeight:700, fontSize:11, letterSpacing:"0.08em",
+                    padding:"0 14px", height:54, border:"none", cursor:"pointer", background:"transparent",
+                    color: view===t.k ? C.t1 : C.t4,
+                    borderBottom: `2px solid ${view===t.k ? C.blue : "transparent"}`,
+                    transition:"color .1s", whiteSpace:"nowrap"}}>
+                  {t.l}
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>setShowSettings(x=>!x)}
+              style={{background:showSettings?C.blueLo:"none",
+                border:showSettings?`1px solid ${C.blue}33`:"1px solid transparent",
+                borderRadius:6, color:showSettings?C.blue:C.t4,
+                cursor:"pointer", fontFamily:COND, fontSize:11, fontWeight:700,
+                letterSpacing:"0.08em", padding:"5px 12px", transition:"all .15s"}}>
+              ⚙ SETTINGS
+            </button>
           </div>
-
-          {/* Settings */}
-          <button onClick={()=>setShowSettings(x=>!x)}
-            style={{background:showSettings?C.blueLo:"none",
-              border:showSettings?`1px solid ${C.blue}33`:"1px solid transparent",
-              borderRadius:6, color:showSettings?C.blue:C.t4,
-              cursor:"pointer", fontFamily:COND, fontSize:11, fontWeight:700,
-              letterSpacing:"0.08em", padding:"5px 12px", transition:"all .15s"}}>
-            ⚙ SETTINGS
-          </button>
-        </div>
+        )}
       </div>
 
       {/* Settings Panel */}
       {showSettings && <SettingsPanel s={s} setS={setS} />}
 
       {/* ── CONTENT ── */}
-      <div style={{maxWidth:960, margin:"0 auto", padding:"24px 20px"}}>
+      <div style={{maxWidth:960, margin:"0 auto", padding: m ? "16px 12px" : "24px 20px"}}>
         {/* Section heading */}
-        <div style={{marginBottom:20}}>
-          <h2 style={{fontFamily:COND, fontWeight:700, fontSize:24, letterSpacing:"0.03em", color:C.t1, margin:0}}>
+        <div style={{marginBottom:16}}>
+          <h2 style={{fontFamily:COND, fontWeight:700, fontSize: m ? 20 : 24, letterSpacing:"0.03em", color:C.t1, margin:0}}>
             {view==="library" ? "VEHICLE LIBRARY"
             : view==="garage" ? "MY GARAGE"
             : "ADD A VEHICLE"}
