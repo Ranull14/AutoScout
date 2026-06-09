@@ -211,7 +211,7 @@ function Btn({children, onClick, variant="primary", small, disabled}) {
 }
 
 // ── Settings Panel ────────────────────────────────────────────────────────────
-function SettingsPanel({s, setS}) {
+function SettingsPanel({s, setS, onReset}) {
   return (
     <div style={{background:C.s1, borderBottom:`1px solid ${C.bdr}`, padding:"16px 24px"}}>
       <div style={{maxWidth:960, margin:"0 auto"}}>
@@ -231,6 +231,18 @@ function SettingsPanel({s, setS}) {
             fmt={v=>`${(v*100).toFixed(0)}¢/kWh`} onChange={v=>setS(p=>({...p,sc:v}))} />
           <SliderRow label="% Charged at SC" value={s.scPct} min={0} max={100} step={5}
             fmt={v=>`${v}%`} onChange={v=>setS(p=>({...p,scPct:v}))} />
+        </div>
+        <div style={{marginTop:14, paddingTop:12, borderTop:`1px solid ${C.bdr}`,
+          display:"flex", alignItems:"center", gap:12}}>
+          <span style={{fontFamily:COND, fontSize:9, color:C.t5, letterSpacing:"0.08em"}}>
+            Settings and garage are saved automatically in your browser.
+          </span>
+          <button onClick={onReset}
+            style={{fontFamily:COND, fontWeight:700, fontSize:9, letterSpacing:"0.08em",
+              background:C.redLo, border:`1px solid ${C.red}33`, borderRadius:5,
+              color:C.red, cursor:"pointer", padding:"4px 10px", whiteSpace:"nowrap"}}>
+            RESET TO DEFAULTS
+          </button>
         </div>
       </div>
     </div>
@@ -986,17 +998,31 @@ function GarageView({garageCars, selected, onSelect, onRemove, s, f, setF}) {
   );
 }
 
+// ── Persistence helpers ───────────────────────────────────────────────────────
+function lsGet(key, fallback) {
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
+  catch { return fallback; }
+}
+function lsSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   useFonts();
   const m = useIsMobile();
   const [view, setView]             = useState("garage");
-  const [garageIds, setGarageIds]   = useState(SHORTLIST_IDS);
-  const [customCars, setCustomCars] = useState([]);
-  const [s, setS]                   = useState(DEF_S);
+  const [garageIds, setGarageIds]   = useState(() => lsGet("as_garage", SHORTLIST_IDS));
+  const [customCars, setCustomCars] = useState(() => lsGet("as_custom", []));
+  const [s, setS]                   = useState(() => ({...DEF_S, ...lsGet("as_settings", {})}));
   const [f, setF]                   = useState(DEF_F);
   const [selected, setSelected]     = useState([]);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Persist garage, custom cars, and settings whenever they change
+  useEffect(() => lsSet("as_garage",   garageIds),  [garageIds]);
+  useEffect(() => lsSet("as_custom",   customCars), [customCars]);
+  useEffect(() => lsSet("as_settings", s),          [s]);
 
   const allCars    = useMemo(()=>[...LIBRARY, ...customCars],[customCars]);
   const garageCars = useMemo(()=>garageIds.map(id=>allCars.find(c=>c.id===id)).filter(Boolean),[garageIds,allCars]);
@@ -1005,6 +1031,10 @@ export default function App() {
   function removeFromGarage(id) { setGarageIds(g=>g.filter(x=>x!==id)); setSelected(s=>s.filter(x=>x!==id)); }
   function toggleSelect(id)   { setSelected(s=>s.includes(id)?s.filter(x=>x!==id):s.length<4?[...s,id]:s); }
   function addCustom(car)     { setCustomCars(c=>[...c,car]); addToGarage(car.id); setView("garage"); }
+  function resetAll() {
+    setGarageIds(SHORTLIST_IDS); setCustomCars([]); setS(DEF_S);
+    lsSet("as_garage", SHORTLIST_IDS); lsSet("as_custom", []); lsSet("as_settings", DEF_S);
+  }
 
   const TABS = [
     { k:"library", l:`LIBRARY (${allCars.length})` },
@@ -1103,7 +1133,7 @@ export default function App() {
       </div>
 
       {/* Settings Panel */}
-      {showSettings && <SettingsPanel s={s} setS={setS} />}
+      {showSettings && <SettingsPanel s={s} setS={setS} onReset={resetAll} />}
 
       {/* ── CONTENT ── */}
       <div style={{maxWidth:960, margin:"0 auto", padding: m ? "16px 12px" : "24px 20px"}}>
