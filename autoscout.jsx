@@ -665,6 +665,7 @@ function parseVeh(xml) {
     fuelType1: g("fuelType1"), fuelType2: g("fuelType2"),
     comb08: +g("comb08")||0, hwy08: +g("highway08")||0,
     combE:  +g("combE") ||0, range:  +g("range")||0,
+    msrpBase: +g("msrpBase")||0, // USD base MSRP for Option A price estimate
   };
 }
 
@@ -696,6 +697,47 @@ function vehToCard(v, name, msrp, seg) {
   };
 }
 
+// ── Price estimation helpers ──────────────────────────────────────────────────
+
+// CAD depreciation curve applied when vehicle age > 2 years
+function depreciateCad(cadPrice, vehicleYear) {
+  const age = new Date().getFullYear() - Number(vehicleYear);
+  if (age <= 1) return Math.round(cadPrice * 0.82);
+  if (age <= 3) return Math.round(cadPrice * 0.65);
+  if (age <= 5) return Math.round(cadPrice * 0.52);
+  return Math.round(cadPrice * 0.40);
+}
+
+// Option A: fueleconomy.gov msrpBase (USD) → CAD MSRP estimate
+// Fetches live USD→CAD rate from frankfurter.app; cached in module scope
+let _cadRate = null;
+async function fetchCadRate() {
+  if (_cadRate) return _cadRate;
+  const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=CAD");
+  const d = await r.json();
+  _cadRate = d.rates?.CAD || 1.37; // fallback if fetch fails
+  return _cadRate;
+}
+
+async function estimatePriceOptionA(veh) {
+  if (!veh.msrpBase) return null;
+  const rate   = await fetchCadRate();
+  const cad    = Math.round(veh.msrpBase * rate * 1.10); // 10% CA markup over converted US sticker
+  const age    = new Date().getFullYear() - Number(veh.year);
+  const price  = age > 2 ? depreciateCad(cad, veh.year) : cad;
+  return { price, source: age > 2 ? "Est. Market Price (MSRP converted, depreciated)" : "Est. MSRP CAD (converted from US)" };
+}
+
+// Option B: Vercel /api/price → marketcheck.com Canadian listings
+async function estimatePriceOptionB(veh) {
+  const params = new URLSearchParams({ year: veh.year, make: veh.make, model: veh.model });
+  const r = await fetch(`/api/price?${params}`, { signal: AbortSignal.timeout(7000) });
+  if (!r.ok) return null;
+  const d = await r.json();
+  if (!d.price) return null;
+  return { price: d.price, count: d.count, low: d.low, high: d.high, source: "Est. Market Price (CA listings)" };
+}
+
 // ── Add Car View ──────────────────────────────────────────────────────────────
 function AddCarView({onAdd}) {
   const m = useIsMobile();
@@ -706,12 +748,14 @@ function AddCarView({onAdd}) {
   const [mod,   setMod]   = useState("");
   const [trims, setTrims] = useState([]);
   const [trim,  setTrim]  = useState("");
-  const [busy,  setBusy]  = useState(""); // "" | "makes" | "models" | "trims" | "vehicle"
-  const [err,   setErr]   = useState("");
-  const [veh,   setVeh]   = useState(null);
-  const [msrp,  setMsrp]  = useState("");
-  const [seg,   setSeg]   = useState("");
-  const [saved, setSaved] = useState(false);
+  const [busy,       setBusy]      = useState(""); // "" | "makes" | "models" | "trims" | "vehicle"
+  const [err,        setErr]       = useState("");
+  const [veh,        setVeh]       = useState(null);
+  const [msrp,       setMsrp]      = useState("");
+  const [seg,        setSeg]       = useState("");
+  const [saved,      setSaved]     = useState(false);
+  const [priceEst,   setPriceEst]  = useState(null);  // { price, source, count?, low?, high? }
+  const [priceBusy,  setPriceBusy] = useState(false);
 
   async function run(stage, fn) {
     setBusy(stage); setErr("");
@@ -750,9 +794,29 @@ function AddCarView({onAdd}) {
   }, [mod]);
 
   async function researchVehicle() {
-    setVeh(null);
+    setVeh(null); setPriceEst(null); setMsrp("");
     await run("vehicle", async () => setVeh(parseVeh(await feGet(`/vehicle/${trim}`))));
   }
+
+  // Fire both price fetches in parallel once vehicle data arrives
+  useEffect(() => {
+    if (!veh) return;
+    let cancelled = false;
+    setPriceBusy(true);
+    Promise.allSettled([estimatePriceOptionB(veh), estimatePriceOptionA(veh)])
+      .then(([bRes, aRes]) => {
+        if (cancelled) return;
+        const b = bRes.status === "fulfilled" ? bRes.value : null;
+        const a = aRes.status === "fulfilled" ? aRes.value : null;
+        const best = b || a; // prefer live CA listings
+        if (best) {
+          setPriceEst(best);
+          setMsrp(String(best.price));
+        }
+        setPriceBusy(false);
+      });
+    return () => { cancelled = true; };
+  }, [veh]);
 
   const preview = veh && msrp ? vehToCard(veh, `${veh.make} ${veh.model}`, msrp, seg) : null;
 
@@ -760,7 +824,7 @@ function AddCarView({onAdd}) {
     if (!preview) return;
     onAdd(preview);
     setSaved(true);
-    setVeh(null); setMsrp(""); setSeg("");
+    setVeh(null); setMsrp(""); setSeg(""); setPriceEst(null);
     setTimeout(() => setSaved(false), 2500);
   }
 
@@ -870,14 +934,44 @@ function AddCarView({onAdd}) {
           </div>
 
           {/* MSRP + Segment */}
-          <div style={{display:"grid", gridTemplateColumns: m ? "1fr" : "1fr 1fr", gap:12, marginBottom:16}}>
-            <Inp label="Canadian Price (MSRP or Market, $CAD) *required"
-              type="number" value={msrp} onChange={setMsrp}
-              placeholder="Check AutoTrader.ca — e.g. 45000" />
+          <div style={{display:"grid", gridTemplateColumns: m ? "1fr" : "1fr 1fr", gap:12, marginBottom:4}}>
+            <div>
+              <Inp label="Canadian Price ($CAD) *required"
+                type="number" value={msrp} onChange={setMsrp}
+                placeholder={priceBusy ? "Fetching estimate…" : "e.g. 45000"} />
+              {/* Price estimate status */}
+              {priceBusy && (
+                <div style={{fontFamily:BODY, fontSize:11, color:C.blue, marginTop:5}}>
+                  ⏳ Fetching Canadian price estimate…
+                </div>
+              )}
+              {!priceBusy && priceEst && (
+                <div style={{marginTop:5}}>
+                  <span style={{fontFamily:COND, fontSize:9, color:C.green, letterSpacing:"0.07em"}}>
+                    ✓ {priceEst.source}
+                  </span>
+                  {priceEst.count && (
+                    <span style={{fontFamily:BODY, fontSize:10, color:C.t5, marginLeft:8}}>
+                      based on {priceEst.count} listing{priceEst.count !== 1 ? "s" : ""}
+                      {priceEst.low && priceEst.high ? ` · range $${(priceEst.low/1000).toFixed(0)}k–$${(priceEst.high/1000).toFixed(0)}k` : ""}
+                    </span>
+                  )}
+                  <span style={{fontFamily:BODY, fontSize:10, color:C.t5, marginLeft:8}}>
+                    — edit if needed
+                  </span>
+                </div>
+              )}
+              {!priceBusy && !priceEst && veh && (
+                <div style={{fontFamily:BODY, fontSize:11, color:C.t4, marginTop:5}}>
+                  No estimate found — enter price manually
+                </div>
+              )}
+            </div>
             <Inp label="Segment (optional)"
               value={seg} onChange={setSeg}
               placeholder="e.g. SUV, Compact, Sedan" />
           </div>
+          <div style={{marginBottom:16}} />
 
           {/* Preview card */}
           {preview && (
