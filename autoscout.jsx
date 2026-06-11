@@ -41,8 +41,6 @@ function useIsMobile() {
 // eff: L/100km (gas/hybrid) or kWh/100km (ev) | keep5: % value retained after 5yr
 const LIBRARY = [
   // ── Your Shortlist ─────────────────────────────────────────────────────────
-  { id:"tundra",  name:"Toyota Tundra 1794",        year:"2025",        type:"gas",    seg:"Truck",         msrp:76000,  eff:13.8, fuel:"regular", ins:2400, maint:1400, keep5:55, stars:4.5, range:null,
-    pros:["Best towing capacity (10,000 lbs)","Hybrid-assist standard","Strong 5yr resale"],    cons:["Highest fuel cost on list","Large parking footprint"] },
   { id:"bmw330",  name:"BMW 330i",                   year:"2020 (Used)", type:"gas",    seg:"Luxury Sedan",  msrp:35500,  eff:8.1,  fuel:"premium", ins:2800, maint:1800, keep5:40, stars:3.8, range:null, usedMarket:true,
     pros:["Outstanding driving dynamics","Turbocharged — efficient on highway"],                cons:["Higher maintenance costs","Premium fuel required"] },
   { id:"gti",     name:"VW Golf GTI",                year:"2022 (Used)", type:"gas",    seg:"Hatchback",     msrp:30500,  eff:8.4,  fuel:"premium", ins:2300, maint:1200, keep5:55, stars:4.0, range:null, usedMarket:true,
@@ -55,23 +53,21 @@ const LIBRARY = [
     pros:["Lowest fuel cost (gas group)","Best 5yr resale on list","Top reliability"],          cons:["Less engaging to drive","Hybrid battery ~yr 10–12"] },
   { id:"modely",  name:"Tesla Model Y AWD",          year:"2026",        type:"ev",     seg:"EV SUV",        msrp:62990,  eff:18.5, fuel:null,      ins:3600, maint:600,  keep5:45, stars:3.8, range:500,
     pros:["Largest Supercharger network in Canada","5+2 seating option","OTA updates"],        cons:["Quality inconsistency reports","Higher insurance"] },
-  { id:"model3",  name:"Tesla Model 3 LR AWD",       year:"2026",        type:"ev",     seg:"EV Sedan",      msrp:64990,  eff:14.8, fuel:null,      ins:3300, maint:550,  keep5:45, stars:3.9, range:620,
-    pros:["Longest range (620 km)","Most efficient EV here","Strong performance"],              cons:["Sedan body only","Build quality variable"] },
-  { id:"polstr3", name:"Polestar 3",                 year:"2026",        type:"ev",     seg:"EV Luxury",     msrp:107800, eff:22.0, fuel:null,      ins:5200, maint:800,  keep5:35, stars:3.5, range:475,
-    pros:["Distinctive Scandinavian design","Premium interior","Harman Kardon standard"],       cons:["$107,800 — most expensive by far","Fast depreciation","Few ON service centres"] },
   { id:"bz",      name:"Toyota bZ XLE AWD",          year:"2026",        type:"ev",     seg:"EV SUV",        msrp:57048,  eff:19.0, fuel:null,      ins:3400, maint:600,  keep5:43, stars:4.2, range:468,
     pros:["Toyota reliability in an EV","Lower insurance than Tesla","AWD standard"],           cons:["Smaller charging network","Shorter range than Model 3"] },
   // ── Popular Canadian Alternatives ──────────────────────────────────────────
-  { id:"civic",   name:"Honda Civic LX",             year:"2025",        type:"gas",    seg:"Compact",       msrp:27590,  eff:6.9,  fuel:"regular", ins:1950, maint:800,  keep5:55, stars:4.7, range:null,
-    pros:["Top reliability record","Lowest fuel cost (compact class)","Strong resale"],         cons:["Base trim limited on tech"] },
-  { id:"cch",     name:"Corolla Cross Hybrid",        year:"2025",        type:"hybrid", seg:"Hybrid SUV",    msrp:37090,  eff:5.5,  fuel:"regular", ins:2100, maint:850,  keep5:58, stars:4.7, range:null,
-    pros:["Best efficiency in hybrid-SUV class","Toyota reliability","AWD standard"],           cons:["Smaller cargo than RAV4"] },
+  { id:"bronco",  name:"Ford Bronco 4x4",             year:"2025",        type:"gas",    seg:"Off-road SUV",  msrp:52999,  eff:12.4, fuel:"regular", ins:2800, maint:1100, keep5:50, stars:4.5, range:null,
+    pros:["Legendary off-road capability","Removable doors & roof","Strong resale"],            cons:["Thirsty on highway","Firm ride on pavement"] },
+  { id:"envision",name:"Buick Envision Preferred",   year:"2025",        type:"gas",    seg:"Compact SUV",   msrp:46598,  eff:9.6,  fuel:"regular", ins:2400, maint:1100, keep5:48, stars:4.4, range:null,
+    pros:["Quiet premium interior","Smooth ride","Competitive MSRP for luxury class"],          cons:["No hybrid option","Lower towing vs class"] },
   { id:"rav4h",   name:"Toyota RAV4 Hybrid XLE",     year:"2025",        type:"hybrid", seg:"Hybrid SUV",    msrp:43490,  eff:6.5,  fuel:"regular", ins:2300, maint:900,  keep5:60, stars:4.8, range:null,
     pros:["Canada's best-selling hybrid SUV","Excellent AWD","Top reliability"],                cons:["Long dealer wait times"] },
   { id:"crvh",    name:"Honda CR-V Hybrid Sport",    year:"2025",        type:"hybrid", seg:"Hybrid SUV",    msrp:42590,  eff:6.7,  fuel:"regular", ins:2250, maint:900,  keep5:58, stars:4.6, range:null,
     pros:["Spacious for class","Strong cargo & towing","Reliable powertrain"],                  cons:["Slightly less efficient than RAV4H"] },
-  { id:"ioniq6",  name:"Hyundai Ioniq 6 AWD",        year:"2026",        type:"ev",     seg:"EV Sedan",      msrp:55999,  eff:18.5, fuel:null,      ins:3200, maint:600,  keep5:43, stars:4.6, range:519,
-    pros:["800V ultra-fast charging","Excellent efficiency","Lower MSRP than Tesla"],           cons:["Sedan body only","Smaller dealer network"] },
+  { id:"tahoe",   name:"Chevrolet Tahoe LS 4WD",     year:"2025",        type:"gas",    seg:"Full-size SUV", msrp:71498,  eff:14.8, fuel:"regular", ins:3200, maint:1200, keep5:52, stars:4.4, range:null,
+    pros:["Massive 8-passenger capacity","Best-in-class towing (3,900 kg)","3-row practicality"], cons:["High fuel cost","Large footprint in city parking"] },
+  { id:"4runner", name:"Toyota 4Runner TRD Off-Road",year:"2025",        type:"hybrid", seg:"Off-road SUV",  msrp:59990,  eff:8.7,  fuel:"regular", ins:2900, maint:900,  keep5:60, stars:4.7, range:null,
+    pros:["Toyota legendary reliability","Strong off-road hardware","Best resale in class"],    cons:["New-gen still proving long-term record","Dealer markup common"] },
   { id:"mazda3",  name:"Mazda 3 Sport GT AWD",       year:"2025",        type:"gas",    seg:"Hatchback",     msrp:35200,  eff:8.0,  fuel:"regular", ins:2200, maint:1000, keep5:52, stars:4.5, range:null,
     pros:["Best interior quality in class","AWD standard on GT","Refined ride"],                cons:["Turbo wants premium for full power"] },
   { id:"tuchhyb", name:"Hyundai Tucson Hybrid",      year:"2025",        type:"hybrid", seg:"Hybrid SUV",    msrp:39499,  eff:6.6,  fuel:"regular", ins:2200, maint:900,  keep5:55, stars:4.4, range:null,
@@ -84,7 +80,7 @@ const LIBRARY = [
     pros:["Spacious midsize with hybrid efficiency","Strong tech features","Refined"],          cons:["FWD only — no AWD option"] },
 ];
 
-const SHORTLIST_IDS = ["tundra","bmw330","gti","kia","ct5","prius","modely","model3","polstr3","bz"];
+const SHORTLIST_IDS = ["bmw330","gti","kia","ct5","prius","modely","bz"];
 const DEF_S = { km:20000, reg:1.60, prem:1.75, home:0.14, sc:0.48, scPct:30 };
 const DEF_F = { down:20, rate:6.99, term:60 };
 const TERMS = [24,36,48,60,72,84];
